@@ -46,6 +46,28 @@ app.get('/api/health', async (req, res) => {
 });
 
 // ----------------------------------------------------------------------------
+// Cloud Database Auto-Seed Endpoint (Accessible without Shell access)
+// ----------------------------------------------------------------------------
+app.get('/api/init-db', async (req, res) => {
+  try {
+    const { initializeDatabase } = require('./scripts/initDB');
+    const result = await initializeDatabase(false);
+    res.json({
+      success: true,
+      message: 'PostgreSQL Database schema, seed data, and admin account initialized successfully!',
+      details: result
+    });
+  } catch (err) {
+    console.error('Failed to initialize database via /api/init-db:', err.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to initialize database.',
+      error: err.message
+    });
+  }
+});
+
+// ----------------------------------------------------------------------------
 // Mount Core Application Routes
 // ----------------------------------------------------------------------------
 app.use('/api/auth', authRoutes);
@@ -98,9 +120,29 @@ const server = app.listen(PORT, async () => {
 
   console.log('================================================================');
   console.log(`  FoodOrder Backend Server running on http://localhost:${PORT}`);
-  console.log(`  PostgreSQL Target: postgresql://${process.env.DB_USER || 'postgres'}@${host}:${port}/${dbName}`);
+  console.log(`  PostgreSQL Target: ${process.env.DATABASE_URL ? 'Cloud PostgreSQL (DATABASE_URL)' : `${host}:${port}/${dbName}`}`);
   console.log(`  Health Check:      http://localhost:${PORT}/api/health`);
+  console.log(`  Auto-Seed Route:   http://localhost:${PORT}/api/init-db`);
   console.log('================================================================');
+
+  // Auto-seed if database is empty on startup (great for free-tier deployments without shell access)
+  try {
+    const checkTable = await db.query("SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'menu_items'");
+    const tableExists = parseInt(checkTable.rows[0]?.cnt || 0, 10) > 0;
+    let needsSeed = !tableExists;
+    if (tableExists) {
+      const countRes = await db.query("SELECT COUNT(*) AS cnt FROM menu_items");
+      needsSeed = parseInt(countRes.rows[0]?.cnt || 0, 10) === 0;
+    }
+    if (needsSeed) {
+      console.log('[PostgreSQL DB] Fresh database detected. Auto-seeding initial schema and dishes...');
+      const { initializeDatabase } = require('./scripts/initDB');
+      await initializeDatabase(false);
+      console.log('[PostgreSQL DB] Auto-seeding completed successfully.');
+    }
+  } catch (seedErr) {
+    console.warn('[PostgreSQL DB] Auto-seed check skipped or encountered error:', seedErr.message);
+  }
 });
 
 // Handle graceful shutdown

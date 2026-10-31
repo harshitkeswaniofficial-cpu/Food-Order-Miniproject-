@@ -10,7 +10,7 @@ const path = require('path');
 const db = require('../config/database');
 const { initAdmin } = require('./initAdmin');
 
-async function initializeDatabase() {
+async function initializeDatabase(shouldClosePool = false) {
   console.log('====================================================');
   console.log('  INITIALIZING FOODORDER DATABASE FOR DEPLOYMENT    ');
   console.log('====================================================\n');
@@ -47,21 +47,25 @@ async function initializeDatabase() {
 
     // 4. Create/Upsert Admin Account
     console.log('-> Setting up Default Administrator Account...');
-    await initAdmin();
+    await initAdmin(false);
 
     console.log('\n====================================================');
     console.log('  DATABASE INITIALIZATION COMPLETE & READY!          ');
     console.log('====================================================');
+    return { success: true, message: 'Database initialized and seeded successfully.' };
   } catch (err) {
     console.error('\n[Database Init Error]:', err.message);
-    process.exit(1);
+    if (shouldClosePool) process.exit(1);
+    throw err;
   } finally {
-    await db.closePool();
+    if (shouldClosePool) {
+      await db.closePool();
+    }
   }
 }
 
 if (require.main === module) {
-  initializeDatabase();
+  initializeDatabase(true);
 }
 
 module.exports = { initializeDatabase };

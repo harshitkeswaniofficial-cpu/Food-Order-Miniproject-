@@ -9,14 +9,15 @@ const bcrypt = require('bcryptjs');
 const db = require('../config/database');
 require('dotenv').config();
 
-async function initAdmin() {
+async function initAdmin(shouldClosePool = false) {
   const username = (process.env.ADMIN_USERNAME || 'admin').trim();
   const email = (process.env.ADMIN_EMAIL || 'admin@foodorder.com').trim().toLowerCase();
   const rawPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
 
   if (!rawPassword || rawPassword.length < 6) {
     console.error('[Admin Setup Error] ADMIN_PASSWORD in server/.env must be at least 6 characters.');
-    process.exit(1);
+    if (shouldClosePool) process.exit(1);
+    throw new Error('ADMIN_PASSWORD must be at least 6 characters.');
   }
 
   try {
@@ -71,14 +72,17 @@ async function initAdmin() {
     }
   } catch (err) {
     console.error('[Admin Setup Error]:', err.message);
-    process.exit(1);
+    if (shouldClosePool) process.exit(1);
+    throw err;
   } finally {
-    await db.closePool();
+    if (shouldClosePool) {
+      await db.closePool();
+    }
   }
 }
 
 if (require.main === module) {
-  initAdmin();
+  initAdmin(true);
 }
 
 module.exports = { initAdmin };
