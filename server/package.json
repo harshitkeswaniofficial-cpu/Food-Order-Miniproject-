@@ -1,0 +1,22 @@
+{
+  "name": "foodorder-server",
+  "version": "1.0.0",
+  "description": "FoodOrder Backend API with PostgreSQL",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node --watch app.js",
+    "init-db": "node scripts/initDB.js",
+    "init-admin": "node scripts/initAdmin.js",
+    "test": "node scripts/verify_security.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.0",
+    "pg": "^8.23.1"
+  }
+}
